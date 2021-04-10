@@ -1,5 +1,5 @@
 [package]
-name = "RustChessEngine"
+name = "rust_chess_engine"
 version = "0.1.0"
 authors = ["JP Ramassini"]
 edition = "2018"

@@ -1,11 +1,13 @@
 use core::fmt;
 
+const STARTING_BOARD_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 fn main() {
     let mut board: Board = Board {
         squares: [Space { piece: None }; 64],
     };
     parse_fen_string_to_board(
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
         &mut board,
     );
 }
