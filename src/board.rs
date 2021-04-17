@@ -1,13 +1,21 @@
-use bevy::prelude::*;
+use bevy::{app::AppExit, prelude::*};
 use bevy_mod_picking::*;
 
 use crate::pieces::*;
+
+struct PlayerTurn(PieceColor);
+impl Default for PlayerTurn {
+    fn default() -> Self {
+        Self(PieceColor::White)
+    }
+}
 
 pub struct BoardPlugin;
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<SelectedSquare>()
             .init_resource::<SelectedPiece>()
+            .init_resource::<PlayerTurn>()
             .add_startup_system(create_board.system())
             .add_system(color_squares.system())
             .add_system(select_square.system());
@@ -106,6 +114,8 @@ fn select_square(
     mouse_button_inputs: Res<Input<MouseButton>>,
     mut selected_square: ResMut<SelectedSquare>,
     mut selected_piece: ResMut<SelectedPiece>,
+    mut turn: ResMut<PlayerTurn>,
+    mut app_exit_events: ResMut<Events<AppExit>>,
     squares_query: Query<&Square>,
     mut pieces_query: Query<(Entity, &mut Piece, &Children)>,
 ) {
@@ -142,11 +152,22 @@ fn select_square(
                     pieces_query.get_mut(selected_piece_entity)
                 {
                     if piece.is_move_valid((square.x, square.y), pieces_vec) {
+                        // Check if piece of opposite color exists in this square and despawn it.
                         for (other_entity, other_piece, other_children) in pieces_entity_vec {
                             if other_piece.x == square.x
                                 && other_piece.y == square.y
                                 && other_piece.color != piece.color
                             {
+
+                                // If captured piece was a king, end the game.
+                                if other_piece.piece_type == PieceType::King {
+                                    println!("{} won! Thanks for playing!", match turn.0 {
+                                        PieceColor::White => "White",
+                                        PieceColor::Black => "Black"
+                                    });
+                                    app_exit_events.send(AppExit);
+                                }
+
                                 commands.despawn(other_entity);
 
                                 for child in other_children {
@@ -157,6 +178,11 @@ fn select_square(
 
                         piece.x = square.x;
                         piece.y = square.y;
+
+                        turn.0 = match turn.0 {
+                            PieceColor::White => PieceColor::Black,
+                            PieceColor::Black => PieceColor::White
+                        }
                     }
                 }
                 selected_square.entity = None;
@@ -164,10 +190,13 @@ fn select_square(
             } else {
                 // Select the piece in the currently selected square
                 for (piece_entity, piece, _) in pieces_query.iter_mut() {
-                    if piece.x == square.x && piece.y == square.y {
+                    if piece.x == square.x && piece.y == square.y && piece.color == turn.0 {
                         // piece_entity is now the entity in the same square
                         selected_piece.entity = Some(piece_entity);
                         break;
+                    } else {
+                        selected_piece.entity = None;
+                        selected_square.entity = None;
                     }
                 }
             }
