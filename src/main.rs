@@ -4,6 +4,10 @@ use bevy_mod_picking::*;
 mod pieces;
 use pieces::*;
 mod board;
+mod ui;
+use ui::UIPlugin;
+mod engine;
+
 use board::*;
 
 // From: https://caballerocoll.com/blog/bevy-chess-tutorial/
@@ -22,6 +26,7 @@ fn main() {
     .add_plugin(BoardPlugin)
     .add_plugin(PiecesPlugin)
     .add_plugin(PickingPlugin)
+    .add_plugin(UIPlugin)
     // .add_plugin(DebugPickingPlugin)
     .add_startup_system(setup.system())
     .run();

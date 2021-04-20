@@ -73,7 +73,7 @@ impl Piece {
                         || (self.y == new_position.1 && self.x != new_position.0))
             }
             PieceType::Pawn => {
-                if self.color == PieceColor::White {
+                if self.color == PieceColor::White {    // For White Pieces
                     // Normal move
                     if new_position.0 as i8 - self.x as i8 == 1 && (self.y == new_position.1) {
                         if color_of_square(new_position, &pieces).is_none() {
@@ -98,7 +98,7 @@ impl Piece {
                             return true;
                         }
                     }
-                } else {
+                } else {    // For Black Pieces
                     // Normal move
                     if new_position.0 as i8 - self.x as i8 == -1 && (self.y == new_position.1) {
                         if color_of_square(new_position, &pieces).is_none() {
@@ -116,7 +116,7 @@ impl Piece {
                         }
                     }
                     // Take a piece
-                    if new_position.0 as i8 - self.x as i8 == 1
+                    if new_position.0 as i8 - self.x as i8 == -1
                         && (self.y as i8 - new_position.1 as i8).abs() == 1
                     {
                         if color_of_square(new_position, &pieces) == Some(PieceColor::White) {
