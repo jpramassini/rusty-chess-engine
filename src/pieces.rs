@@ -4,7 +4,20 @@ pub struct PiecesPlugin;
 impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(create_pieces.system())
+            .init_resource::<PieceMetadata>()
             .add_system(move_pieces.system());
+    }
+}
+
+pub struct PieceMetadata {
+    pub piece_is_animating: bool
+}
+
+impl Default for PieceMetadata {
+    fn default() -> Self {
+        PieceMetadata {
+            piece_is_animating: false
+        }
     }
 }
 
@@ -131,14 +144,19 @@ impl Piece {
     }
 }
 
-fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
+fn move_pieces(time: Res<Time>, mut piece_metadata: ResMut<PieceMetadata>, mut query: Query<(&mut Transform, &Piece)>) {
     for (mut transform, piece) in query.iter_mut() {
         // Get direction to move in
         let direction = Vec3::new(piece.x as f32, 0.0, piece.y as f32) - transform.translation;
 
         // Only move if the piece isn't already there (distance is big)
         if direction.length() > 0.1 {
+            piece_metadata.piece_is_animating = true;
+            println!("Piece is animating: {}", piece_metadata.piece_is_animating);
             transform.translation += direction.normalize() * time.delta_seconds() * 3.0;
+        } else {
+            piece_metadata.piece_is_animating = false;
+            println!("Piece is animating: {}", piece_metadata.piece_is_animating);
         }
     }
 }

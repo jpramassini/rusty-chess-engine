@@ -183,10 +183,16 @@ fn move_piece(
     selected_square: ChangedRes<SelectedSquare>,
     selected_piece: Res<SelectedPiece>,
     mut turn: ResMut<PlayerTurn>,
+    pieces_metadata: Res<PieceMetadata>,
     squares_query: Query<&Square>,
     mut pieces_query: Query<(Entity, &mut Piece)>,
     mut reset_selected_event: ResMut<Events<ResetSelectedEvent>>
 ) {
+    if pieces_metadata.piece_is_animating {
+        
+        return;
+    }
+    
     let square_entity = if let Some(entity) = selected_square.entity {
         entity
     } else {
@@ -256,7 +262,7 @@ fn despawn_taken_pieces(
     query: Query<(Entity, &Piece, &Taken)>,
 ) {
     for (entity, piece, _taken) in query.iter() {
-        // If the kind is taken, we should exit
+        // If the king is taken, we should exit
         if piece.piece_type == PieceType::King {
             println!(
                 "{} won! Thanks for playing!",
