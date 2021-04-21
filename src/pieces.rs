@@ -126,6 +126,7 @@ impl Piece {
                 }
             }
         }
+        println!("Invalid move.");
         return false;
     }
 }
@@ -152,7 +153,7 @@ fn color_of_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<PieceColor> {
 }
 
 fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
-    // Same column case
+    // Same column
     if begin.0 == end.0 {
         for piece in pieces {
             if piece.x == begin.0
@@ -163,8 +164,7 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
             }
         }
     }
-
-    // Same row case
+    // Same row
     if begin.1 == end.1 {
         for piece in pieces {
             if piece.y == begin.1
@@ -176,22 +176,23 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
         }
     }
 
-    // Diagonal case
+    // Diagonals
     let x_diff = (begin.0 as i8 - end.0 as i8).abs();
     let y_diff = (begin.1 as i8 - end.1 as i8).abs();
     if x_diff == y_diff {
         for i in 1..x_diff {
             let pos = if begin.0 < end.0 && begin.1 < end.1 {
-                //left bottom -> right top
+                // left bottom - right top
                 (begin.0 + i as u8, begin.1 + i as u8)
             } else if begin.0 < end.0 && begin.1 > end.1 {
-                // right bottom -> left top
+                // left top - right bottom
                 (begin.0 + i as u8, begin.1 - i as u8)
             } else if begin.0 > end.0 && begin.1 < end.1 {
-                // top left -> right bottom
-                (begin.0 - 1 as u8, begin.1 + i as u8)
+                // right bottom - left top
+                (begin.0 - i as u8, begin.1 + i as u8)
             } else {
-                // top right -> left bottom
+                // begin.0 > end.0 && begin.1 > end.1
+                // right top - left bottom
                 (begin.0 - i as u8, begin.1 - i as u8)
             };
 
@@ -200,6 +201,7 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
             }
         }
     }
+
     true
 }
 

@@ -10,15 +10,29 @@ impl Default for PlayerTurn {
     }
 }
 
+impl PlayerTurn {
+    fn change(&mut self) {
+        self.0 = match self.0 {
+            PieceColor::White => PieceColor::Black,
+            PieceColor::Black => PieceColor::White
+        }
+    }
+}
+
 pub struct BoardPlugin;
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<SelectedSquare>()
             .init_resource::<SelectedPiece>()
             .init_resource::<PlayerTurn>()
+            .add_event::<ResetSelectedEvent>()
             .add_startup_system(create_board.system())
             .add_system(color_squares.system())
-            .add_system(select_square.system());
+            .add_system(select_square.system())
+            .add_system(move_piece.system())
+            .add_system(select_piece.system())
+            .add_system(despawn_taken_pieces.system())
+            .add_system(reset_selected.system());
     }
 }
 
@@ -109,101 +123,151 @@ fn color_squares(
 }
 
 fn select_square(
-    commands: &mut Commands,
     pick_state: Res<PickState>,
     mouse_button_inputs: Res<Input<MouseButton>>,
     mut selected_square: ResMut<SelectedSquare>,
     mut selected_piece: ResMut<SelectedPiece>,
-    mut turn: ResMut<PlayerTurn>,
-    mut app_exit_events: ResMut<Events<AppExit>>,
-    squares_query: Query<&Square>,
-    mut pieces_query: Query<(Entity, &mut Piece, &Children)>,
+    squares_query: Query<&Square>
 ) {
-    // Only run if the left button is pressed
+    // Only run if left is pressed
     if !mouse_button_inputs.just_pressed(MouseButton::Left) {
         return;
     }
 
-    // Get the square under the cursor and set it as the selected
+    // Get square under cursor, set as selected
     if let Some((square_entity, _intersection)) = pick_state.top(Group::default()) {
-        // Get the actual square. This ensures it exists and is a square
-        if let Ok(square) = squares_query.get(*square_entity) {
-            // Mark it as selected
+        // Get ref to actual square, making sure it exists and is a square.
+        if let Ok(_square) = squares_query.get(*square_entity) {
+            // Mark square as selected
             selected_square.entity = Some(*square_entity);
-
-            if let Some(selected_piece_entity) = selected_piece.entity {
-                let pieces_entity_vec: Vec<(Entity, Piece, Vec<Entity>)> = pieces_query
-                    .iter_mut()
-                    .map(|(entity, piece, children)| {
-                        (
-                            entity,
-                            *piece,
-                            children.iter().map(|entity| *entity).collect(),
-                        )
-                    })
-                    .collect();
-                let pieces_vec = pieces_query
-                    .iter_mut()
-                    .map(|(_, piece, _)| *piece)
-                    .collect();
-
-                // Move the selected piece to the selected square
-                if let Ok((_piece_entity, mut piece, _)) =
-                    pieces_query.get_mut(selected_piece_entity)
-                {
-                    if piece.is_move_valid((square.x, square.y), pieces_vec) {
-                        // Check if piece of opposite color exists in this square and despawn it.
-                        for (other_entity, other_piece, other_children) in pieces_entity_vec {
-                            if other_piece.x == square.x
-                                && other_piece.y == square.y
-                                && other_piece.color != piece.color
-                            {
-
-                                // If captured piece was a king, end the game.
-                                if other_piece.piece_type == PieceType::King {
-                                    println!("{} won! Thanks for playing!", match turn.0 {
-                                        PieceColor::White => "White",
-                                        PieceColor::Black => "Black"
-                                    });
-                                    app_exit_events.send(AppExit);
-                                }
-
-                                commands.despawn(other_entity);
-
-                                for child in other_children {
-                                    commands.despawn(child);
-                                }
-                            }
-                        }
-
-                        piece.x = square.x;
-                        piece.y = square.y;
-
-                        turn.0 = match turn.0 {
-                            PieceColor::White => PieceColor::Black,
-                            PieceColor::Black => PieceColor::White
-                        }
-                    }
-                }
-                selected_square.entity = None;
-                selected_piece.entity = None;
-            } else {
-                // Select the piece in the currently selected square
-                for (piece_entity, piece, _) in pieces_query.iter_mut() {
-                    if piece.x == square.x && piece.y == square.y && piece.color == turn.0 {
-                        // piece_entity is now the entity in the same square
-                        selected_piece.entity = Some(piece_entity);
-                        break;
-                    } else {
-                        selected_piece.entity = None;
-                        selected_square.entity = None;
-                    }
-                }
-            }
         }
     } else {
         // Player clicked outside the board, deselect everything
         selected_square.entity = None;
         selected_piece.entity = None;
+    }
+}
+
+fn select_piece(
+    selected_square: ChangedRes<SelectedSquare>,
+    mut selected_piece: ResMut<SelectedPiece>,
+    turn: Res<PlayerTurn>,
+    squares_query: Query<&Square>,
+    pieces_query: Query<(Entity, &Piece)>
+) {
+    let square_entity = if let Some(entity) = selected_square.entity {
+        entity
+    } else {
+        return;
+    };
+
+    let square = if let Ok(square) = squares_query.get(square_entity) {
+        square
+    } else {
+        return;
+    };
+
+    if selected_piece.entity.is_none() {
+        // Select the piece in the currently selected square
+        for (piece_entity, piece) in pieces_query.iter() {
+            if piece.x == square.x && piece.y == square.y && piece.color == turn.0 {
+                selected_piece.entity = Some(piece_entity);
+                break;
+            }
+        }
+    }
+}
+
+fn move_piece(
+    commands: &mut Commands,
+    selected_square: ChangedRes<SelectedSquare>,
+    selected_piece: Res<SelectedPiece>,
+    mut turn: ResMut<PlayerTurn>,
+    squares_query: Query<&Square>,
+    mut pieces_query: Query<(Entity, &mut Piece)>,
+    mut reset_selected_event: ResMut<Events<ResetSelectedEvent>>
+) {
+    let square_entity = if let Some(entity) = selected_square.entity {
+        entity
+    } else {
+        return;
+    };
+
+    let square = if let Ok(square) = squares_query.get(square_entity) {
+        square
+    } else {
+        return;
+    };
+
+    if let Some(selected_piece_entity) = selected_piece.entity {
+        let pieces_vec = pieces_query.iter_mut().map(|(_, piece)| *piece).collect();
+        let pieces_entity_vec = pieces_query.iter_mut()
+        .map(|(entity, piece)| (entity, *piece))
+        .collect::<Vec<(Entity, Piece)>>();
+
+        // Move the selected piece to the selected square
+        let mut piece =
+            if let Ok((_piece_entity, piece)) = pieces_query.get_mut(selected_piece_entity) {
+                piece
+            } else {
+                return;
+            };
+
+        if piece.is_move_valid((square.x, square.y), pieces_vec) {
+            // Check if a piece of the opposite color exists in this square and despawn it
+            for (other_entity, other_piece) in pieces_entity_vec {
+                if other_piece.x == square.x
+                    && other_piece.y == square.y
+                    && other_piece.color != piece.color {
+                        commands.insert_one(other_entity, Taken);
+                    }
+            }
+
+            // Move piece
+            piece.x = square.x;
+            piece.y = square.y;
+
+            // Change turn
+            turn.change();
+        }
+
+        reset_selected_event.send(ResetSelectedEvent);
+    }
+}
+
+struct ResetSelectedEvent;
+
+fn reset_selected(
+    mut event_reader: Local<EventReader<ResetSelectedEvent>>,
+    events: Res<Events<ResetSelectedEvent>>,
+    mut selected_square: ResMut<SelectedSquare>,
+    mut selected_piece: ResMut<SelectedPiece>
+) {
+    for _event in event_reader.iter(&events) {
+        selected_square.entity = None;
+        selected_piece.entity = None;
+    }
+}
+
+struct Taken;
+fn despawn_taken_pieces(
+    commands: &mut Commands,
+    mut app_exit_events: ResMut<Events<AppExit>>,
+    query: Query<(Entity, &Piece, &Taken)>,
+) {
+    for (entity, piece, _taken) in query.iter() {
+        // If the kind is taken, we should exit
+        if piece.piece_type == PieceType::King {
+            println!(
+                "{} won! Thanks for playing!",
+                match piece.color {
+                    PieceColor::White => "Black",
+                    PieceColor::Black => "White"
+                }
+            );
+            app_exit_events.send(AppExit);
+        }
+
+        commands.despawn_recursive(entity);
     }
 }
