@@ -1,5 +1,7 @@
 use core::fmt;
 
+use crate::pieces::*;
+
 const STARTING_BOARD_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
@@ -14,26 +16,12 @@ fn main() {
 
 const VALID_PIECE_CHARS: [char; 6] = ['p', 'n', 'b', 'k', 'q', 'r'];
 
-#[derive(Clone, Copy, Debug)]
-enum PieceType {
-    Pawn,
-    Knight,
-    Rook,
-    Bishop,
-    Queen,
-    King,
-}
+const DEFAULT_SIDE_LENGTH: u32 = 8;
 
 impl fmt::Display for PieceType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-enum PieceColor {
-    White,
-    Black,
 }
 
 impl fmt::Display for PieceColor {
@@ -43,25 +31,31 @@ impl fmt::Display for PieceColor {
 }
 
 #[derive(Clone, Copy)]
-struct Piece {
-    piece_type: PieceType,
-    piece_color: PieceColor,
+pub struct Piece {
+    pub piece_type: PieceType,
+    pub piece_color: PieceColor,
 }
 
 #[derive(Clone, Copy)]
-struct Space {
-    piece: Option<Piece>,
+pub struct Space {
+    pub piece: Option<Piece>,
 }
 
-struct Board {
-    squares: [Space; 64],
+pub struct Board {
+    pub squares: [Space; 64],
 }
 
-fn rank_and_file_to_index(rank: u32, file: u32) -> usize {
+pub fn rank_and_file_to_index(rank: u32, file: u32) -> usize {
     (rank * 8 + file) as usize
 }
 
-fn parse_fen_string_to_board(fen_string: &str, board: &mut Board) -> () {
+pub fn index_to_rank_and_file(index: usize) -> (u8, u8) {
+    let rank = index as u32 / DEFAULT_SIDE_LENGTH;
+    let file = index as u32 % DEFAULT_SIDE_LENGTH;
+    return (rank as u8, file as u8);
+}
+
+pub fn parse_fen_string_to_board(fen_string: &str, board: &mut Board) -> () {
     /*  Separate different parts of the fen string. If the string is properly formatted, the parts and
         their matching indices are:
         0: Piece Placement

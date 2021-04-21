@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::engine::*;
+
 pub struct PiecesPlugin;
 impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -21,13 +23,13 @@ impl Default for PieceMetadata {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PieceColor {
     White,
     Black,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PieceType {
     King,
     Queen,
@@ -253,167 +255,195 @@ fn create_pieces(
 
     // NOTE for Vec3 Positions: X is the rank, Z is the file.
 
-    /*
-     * Setup White Pieces
-     */
-    spawn_rook(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        rook_handle.clone(),
-        (0, 0),
+    let mut board: Board = Board {
+        squares: [Space {piece: None}; 64],
+    };
+    parse_fen_string_to_board(
+        "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+        &mut board,
     );
+    
+    for (index, square) in board.squares.iter().enumerate() {
+        let position = index_to_rank_and_file(index);
+        if square.piece.is_none(){
+            continue;
+        }
+        let piece = square.piece.unwrap();
 
-    spawn_knight(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        knight_1_handle.clone(),
-        knight_2_handle.clone(),
-        (0, 1),
-    );
-
-    spawn_bishop(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        bishop_handle.clone(),
-        (0, 2),
-    );
-
-    spawn_queen(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        queen_handle.clone(),
-        (0, 3),
-    );
-
-    spawn_king(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        king_handle.clone(),
-        king_cross_handle.clone(),
-        (0, 4),
-    );
-
-    spawn_bishop(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        bishop_handle.clone(),
-        (0, 5),
-    );
-
-    spawn_knight(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        knight_1_handle.clone(),
-        knight_2_handle.clone(),
-        (0, 6),
-    );
-
-    spawn_rook(
-        commands,
-        white_material.clone(),
-        PieceColor::White,
-        rook_handle.clone(),
-        (0, 7),
-    );
-
-    // Set up white pawns
-    for i in 0..8 {
-        spawn_pawn(
-            commands,
-            white_material.clone(),
-            PieceColor::White,
-            pawn_handle.clone(),
-            (1, i),
-        )
+        let piece_color = piece.piece_color;
+        let material = if piece.piece_color == PieceColor::White {white_material.clone()} else {black_material.clone()};
+        match piece.piece_type {
+            PieceType::Pawn => 
+                spawn_pawn(commands, material, piece.piece_color, pawn_handle.clone(), position),
+            PieceType::Bishop => spawn_bishop(commands, material, piece_color, bishop_handle.clone(), position),
+            PieceType::King => spawn_king(commands, material, piece_color, king_handle.clone(), king_cross_handle.clone(), position),
+            PieceType::Knight => spawn_knight(commands, material, piece_color, knight_1_handle.clone(), knight_2_handle.clone(), position),
+            PieceType::Queen => spawn_queen(commands, material, piece_color, queen_handle.clone(), position),
+            PieceType::Rook => spawn_rook(commands, material, piece_color, rook_handle.clone(), position)
+        }
     }
 
-    /*
-     * Setup Black Pieces
-     */
-    spawn_rook(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        rook_handle.clone(),
-        (7, 0),
-    );
+    // /*
+    //  * Setup White Pieces
+    //  */
+    // spawn_rook(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     rook_handle.clone(),
+    //     (0, 0),
+    // );
 
-    spawn_knight(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        knight_1_handle.clone(),
-        knight_2_handle.clone(),
-        (7, 1),
-    );
+    // spawn_knight(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     knight_1_handle.clone(),
+    //     knight_2_handle.clone(),
+    //     (0, 1),
+    // );
 
-    spawn_bishop(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        bishop_handle.clone(),
-        (7, 2),
-    );
+    // spawn_bishop(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     bishop_handle.clone(),
+    //     (0, 2),
+    // );
 
-    spawn_queen(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        queen_handle.clone(),
-        (7, 3),
-    );
+    // spawn_queen(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     queen_handle.clone(),
+    //     (0, 3),
+    // );
 
-    spawn_king(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        king_handle.clone(),
-        king_cross_handle.clone(),
-        (7, 4),
-    );
+    // spawn_king(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     king_handle.clone(),
+    //     king_cross_handle.clone(),
+    //     (0, 4),
+    // );
 
-    spawn_bishop(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        bishop_handle.clone(),
-        (7, 5),
-    );
+    // spawn_bishop(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     bishop_handle.clone(),
+    //     (0, 5),
+    // );
 
-    spawn_knight(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        knight_1_handle.clone(),
-        knight_2_handle.clone(),
-        (7, 6),
-    );
+    // spawn_knight(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     knight_1_handle.clone(),
+    //     knight_2_handle.clone(),
+    //     (0, 6),
+    // );
 
-    spawn_rook(
-        commands,
-        black_material.clone(),
-        PieceColor::Black,
-        rook_handle.clone(),
-        (7, 7),
-    );
+    // spawn_rook(
+    //     commands,
+    //     white_material.clone(),
+    //     PieceColor::White,
+    //     rook_handle.clone(),
+    //     (0, 7),
+    // );
 
-    // Set up white pawns
-    for i in 0..8 {
-        spawn_pawn(
-            commands,
-            black_material.clone(),
-            PieceColor::Black,
-            pawn_handle.clone(),
-            (6, i),
-        )
-    }
+    // // Set up white pawns
+    // for i in 0..8 {
+    //     spawn_pawn(
+    //         commands,
+    //         white_material.clone(),
+    //         PieceColor::White,
+    //         pawn_handle.clone(),
+    //         (1, i),
+    //     )
+    // }
+
+    // /*
+    //  * Setup Black Pieces
+    //  */
+    // spawn_rook(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     rook_handle.clone(),
+    //     (7, 0),
+    // );
+
+    // spawn_knight(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     knight_1_handle.clone(),
+    //     knight_2_handle.clone(),
+    //     (7, 1),
+    // );
+
+    // spawn_bishop(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     bishop_handle.clone(),
+    //     (7, 2),
+    // );
+
+    // spawn_queen(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     queen_handle.clone(),
+    //     (7, 3),
+    // );
+
+    // spawn_king(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     king_handle.clone(),
+    //     king_cross_handle.clone(),
+    //     (7, 4),
+    // );
+
+    // spawn_bishop(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     bishop_handle.clone(),
+    //     (7, 5),
+    // );
+
+    // spawn_knight(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     knight_1_handle.clone(),
+    //     knight_2_handle.clone(),
+    //     (7, 6),
+    // );
+
+    // spawn_rook(
+    //     commands,
+    //     black_material.clone(),
+    //     PieceColor::Black,
+    //     rook_handle.clone(),
+    //     (7, 7),
+    // );
+
+    // // Set up white pawns
+    // for i in 0..8 {
+    //     spawn_pawn(
+    //         commands,
+    //         black_material.clone(),
+    //         PieceColor::Black,
+    //         pawn_handle.clone(),
+    //         (6, i),
+    //     )
+    // }
 }
 
 fn spawn_king(
